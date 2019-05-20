@@ -1,6 +1,5 @@
 apply plugin: 'com.android.application'
 
-apply plugin: 'com.chaquo.python'
 
 android {
     compileSdkVersion 27
@@ -12,15 +11,7 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        ndk {
-            abiFilters "armeabi-v7a", "x86"
-        }
-        python {
-            pip {
-                install "nltk==3.3"
-            }
-        }
-    }
+           }
     buildTypes {
         release {
             minifyEnabled false
@@ -33,7 +24,9 @@ android {
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'ca.rmen:porter-stemmer:1.0.0'
+    //noinspection GradleCompatible
     implementation 'com.android.support:appcompat-v7:27.1.1'
     implementation 'org.tensorflow:tensorflow-lite:1.13.1'
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'

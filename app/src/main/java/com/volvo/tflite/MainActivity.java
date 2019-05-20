@@ -2,93 +2,61 @@ package com.volvo.tflite;
 
 import android.app.Activity;
 import android.content.res.AssetFileDescriptor;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
 import org.tensorflow.lite.Interpreter;
 
-import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.StringTokenizer;
+
+import ca.rmen.porterstemmer.PorterStemmer;
 
 public class MainActivity extends AppCompatActivity {
 
     protected Interpreter tflite;
+    public static String nlu_intent = null;
     public static String MODEL_PATH = "nlu.tflite";
-//    int[][] inputArray = new int[1][65];
-    float[][] ProbArray = new float[1][7];
-    ArrayList<Float> predictons = new ArrayList<>();
-    ArrayList<String> tokens = new ArrayList<>();
+
+
+    String[] words = {"a", "afternoon", "are", "assist", "befor", "broken", "bunk", "can", "check", "day", "diesel", "distanc", "drink", "eat", "empti", "even", "famish", "far", "farther", "fill", "food", "for", "fuel", "ga", "go", "good", "hello", "help", "hey", "hi", "how", "hungri", "indic", "is", "left", "light", "long", "lot", "me", "morn", "much", "near", "on", "petrol", "place", "pump", "refil", "remain", "restaur", "right", "side", "so", "starv", "station", "tank", "thank", "the", "thirsti", "to", "ton", "travel", "turn", "we", "what", "you"};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-//        float[][] inputArray = {{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//        0,0,1,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}};
-//
-//        String str = "I am sample string and will be tokenized on space";
-//
-//        StringTokenizer defaultTokenizer = new StringTokenizer(str);
-//
-//        while (defaultTokenizer.hasMoreTokens())
-//        {
-//            tokens.add(defaultTokenizer.nextToken().toLowerCase());
-//        }
-//        Log.e("MainActivity", tokens.toString());
-//        try {
-//            Log.e("MainActivity", "Started Running");
-//            tflite = new Interpreter(loadModelFile(MainActivity.this));
-//
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        tflite.run(inputArray, ProbArray);
-//        for (int i=0; i<7; i++){
-//            System.out.println("MainActivity" + ProbArray[0][i]);
-//            predictons.add(ProbArray[0][i]);
-//        }
-//        int maxAt = 0;
-//
-//        for (int i = 0; i < ProbArray[0].length; i++) {
-//            maxAt = ProbArray[0][i] > ProbArray[0][maxAt] ? i : maxAt;
-//        }
-//
-//        System.out.println("The highest maximum for the December is: " + maxAt);
+        String str = "Good morning";
 
+        float[][] inputArray = string_converter(str);
+        float[][] ProbArray = new float[1][7];
 
-        try{
-            // for tilda expansion
-            //if (filepath.startsWith("~" + File.separator)) {
-            //filepath = System.getProperty("user.home") + filepath.substring(1);
-            //}
-
-            //ProcessBuilder builder = new ProcessBuilder("python", "-c", "import sys; import nltk; print \"whatever\"");
-            ProcessBuilder builder = new ProcessBuilder("python", "main.py", "four scores and seven years ago");
-            builder.redirectErrorStream(true);
-            Process p = builder.start();
-            InputStream stdout = p.getInputStream();
-            BufferedReader reader = new BufferedReader (new InputStreamReader(stdout));
-
-            String line;
-            while ((line = reader.readLine ()) != null) {
-                System.out.println("Stdout: " + line);
-            }
-        } catch (Exception e){
+        try {
+            tflite = new Interpreter(loadModelFile(MainActivity.this));
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
+        tflite.run(inputArray, ProbArray);
+
+        int index = highestpredictionindex(ProbArray);
+
+        switch (index) {
+            case 0 : nlu_intent = "Distance";break;
+            case 1 : nlu_intent = "FuelStation";break;
+            case 2 : nlu_intent = "Greetings";break;
+            case 3 : nlu_intent = "LeftIndicator";break;
+            case 4 : nlu_intent = "Restaurant";break;
+            case 5 : nlu_intent = "LeftIndicator";break;
+            case 6 : nlu_intent = "Thanking";break;
+        }
+
+        Log.e("MainActivity", nlu_intent);
 
     }
 
@@ -99,6 +67,48 @@ public class MainActivity extends AppCompatActivity {
         long startOffset = fileDescriptor.getStartOffset();
         long declaredLength = fileDescriptor.getDeclaredLength();
         return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+    }
+
+    public float[][] string_converter(String str) {
+
+        ArrayList<String> tokens = new ArrayList<>();
+
+        StringTokenizer defaultTokenizer = new StringTokenizer(str);
+
+        while (defaultTokenizer.hasMoreTokens())
+        {
+            PorterStemmer porterStemmer = new PorterStemmer();
+            String stem = porterStemmer.stemWord(defaultTokenizer.nextToken().toLowerCase());
+            tokens.add(stem);
+        }
+
+        int len = words.length;
+        float[][] bag = new float[1][len];
+        for(int i = 0; i<words.length; i++) {
+            for(int j=0;j<tokens.size(); j++) {
+                if(words[i].equals(tokens.get(j))){
+                    bag[0][i] = 1;
+                }
+            }
+        }
+
+        return bag;
+    }
+
+    public int highestpredictionindex(float[][] input) {
+
+        ArrayList<Float> predictons = new ArrayList<>();
+
+        for (int i=0; i<7; i++){
+            predictons.add(input[0][i]);
+        }
+        int maxAt = 0;
+
+        for (int i = 0; i < input[0].length; i++) {
+            maxAt = input[0][i] > input[0][maxAt] ? i : maxAt;
+        }
+
+        return maxAt;
     }
 
 }
