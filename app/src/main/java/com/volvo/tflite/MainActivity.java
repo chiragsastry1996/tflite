@@ -5,6 +5,10 @@ import android.content.res.AssetFileDescriptor;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
 
 import org.tensorflow.lite.Interpreter;
 
@@ -20,8 +24,11 @@ import ca.rmen.porterstemmer.PorterStemmer;
 public class MainActivity extends AppCompatActivity {
 
     protected Interpreter tflite;
-    public static String nlu_intent = null;
+    public static String nlu_intent = null, message = null;
     public static String MODEL_PATH = "nlu.tflite";
+    TextView textView;
+    Button button;
+    EditText editText;
 
 
     String[] words = {"a", "afternoon", "are", "assist", "befor", "broken", "bunk", "can", "check", "day", "diesel", "distanc", "drink", "eat", "empti", "even", "famish", "far", "farther", "fill", "food", "for", "fuel", "ga", "go", "good", "hello", "help", "hey", "hi", "how", "hungri", "indic", "is", "left", "light", "long", "lot", "me", "morn", "much", "near", "on", "petrol", "place", "pump", "refil", "remain", "restaur", "right", "side", "so", "starv", "station", "tank", "thank", "the", "thirsti", "to", "ton", "travel", "turn", "we", "what", "you"};
@@ -31,10 +38,16 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        String str = "Good morning";
+        textView = (TextView)findViewById(R.id.text);
+        editText = (EditText)findViewById(R.id.edit_text);
+        button = (Button)findViewById(R.id.button);
 
-        float[][] inputArray = string_converter(str);
-        float[][] ProbArray = new float[1][7];
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                nlu_classify();
+            }
+        });
 
         try {
             tflite = new Interpreter(loadModelFile(MainActivity.this));
@@ -42,21 +55,37 @@ public class MainActivity extends AppCompatActivity {
             e.printStackTrace();
         }
 
-        tflite.run(inputArray, ProbArray);
+    }
 
-        int index = highestpredictionindex(ProbArray);
+    public void nlu_classify() {
 
-        switch (index) {
-            case 0 : nlu_intent = "Distance";break;
-            case 1 : nlu_intent = "FuelStation";break;
-            case 2 : nlu_intent = "Greetings";break;
-            case 3 : nlu_intent = "LeftIndicator";break;
-            case 4 : nlu_intent = "Restaurant";break;
-            case 5 : nlu_intent = "LeftIndicator";break;
-            case 6 : nlu_intent = "Thanking";break;
+        String str = editText.getText().toString();
+
+        if(!str.isEmpty()) {
+            float[][] inputArray = string_converter(str);
+            float[][] ProbArray = new float[1][7];
+
+            tflite.run(inputArray, ProbArray);
+
+            int index = highestpredictionindex(ProbArray);
+
+            switch (index) {
+                case 0 : nlu_intent = "Distance";break;
+                case 1 : nlu_intent = "FuelStation";break;
+                case 2 : nlu_intent = "Greetings";break;
+                case 3 : nlu_intent = "LeftIndicator";break;
+                case 4 : nlu_intent = "Restaurant";break;
+                case 5 : nlu_intent = "LeftIndicator";break;
+                case 6 : nlu_intent = "Thanking";break;
+            }
+
+            message = message + "\nIntent =" + nlu_intent;
+            textView.setText(message);
+
+            Log.e("MainActivity", nlu_intent);
         }
 
-        Log.e("MainActivity", nlu_intent);
+
 
     }
 
@@ -107,6 +136,8 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < input[0].length; i++) {
             maxAt = input[0][i] > input[0][maxAt] ? i : maxAt;
         }
+
+        message = "Accuracy = " + input[0][maxAt];
 
         return maxAt;
     }
